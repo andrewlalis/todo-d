@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/todo-d
+todo-d.so
+todo-d.dylib
+todo-d.dll
+todo-d.a
+todo-d.lib
+todo-d-test-*
+*.exe
+*.o
+*.obj
+*.lst

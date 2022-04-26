@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"Andrew Lalis"
+	],
+	"copyright": "Copyright © 2022, Andrew Lalis",
+	"dependencies": {
+		"gtk-d": "~>3.10.0"
+	},
+	"description": "A simple to-do list, implemented as a desktop application in D.",
+	"license": "MIT",
+	"name": "todo-d"
+}
