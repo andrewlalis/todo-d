@@ -13,3 +13,5 @@ todo-d-test-*
 *.o
 *.obj
 *.lst
+*.glade~
+*.gresource

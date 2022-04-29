@@ -14,6 +14,8 @@ import gtk.Label;
 import gtk.CheckButton;
 import gtk.ToggleButton;
 import gtk.Button;
+import gio.Resource;
+import glib.Bytes;
 
 class ToDoItemWidget : Box {
     this(ToDoItem item, ToDoModel todoModel) {
@@ -54,15 +56,26 @@ class ToDoItemWidget : Box {
 
 Entry taskEntry;
 ListBox taskList;
+ApplicationWindow window;
 
 ToDoModel todoModel;
 
 void main(string[] args) {
 	Main.init(args);
-	Builder builder = new Builder("todo-ui.glade");
+
+	auto bytes = new Bytes(cast(ubyte[]) import("resources.gresource"));
+	Resource.register(new Resource(bytes));
+
+	Builder builder = new Builder();
+	builder.addFromResource("/ui/todo-ui.glade");
 	
 	builder.addCallbackSymbol("onAddTask", &addTask);
 	builder.addCallbackSymbol("onWindowDestroy", &onWindowDestroy);
+
+	builder.addCallbackSymbol("onNewMenuActivated", &onNewMenuActivated);
+	builder.addCallbackSymbol("onSaveMenuActivated", &onSaveMenuActivated);
+	builder.addCallbackSymbol("onSaveAsMenuActivated", &onSaveAsMenuActivated);
+	builder.addCallbackSymbol("onOpenMenuActivated", &onOpenMenuActivated);
 	builder.addCallbackSymbol("onQuitMenuActivated", &onWindowDestroy);
 	builder.connectSignals(null);
 
@@ -73,7 +86,7 @@ void main(string[] args) {
 	import std.functional : toDelegate;
 	todoModel.addListener(ModelUpdateListener.of(toDelegate(&itemsUpdated)));
 
-	ApplicationWindow window = cast(ApplicationWindow) builder.getObject("window");
+	window = cast(ApplicationWindow) builder.getObject("window");
 	window.showAll();
 	Main.run();
 }
@@ -96,4 +109,50 @@ extern (C) void addTask() {
 
 extern (C) void onWindowDestroy() {
 	Main.quit();
+	if (todoModel.getOpenFilename() !is null) {
+		todoModel.saveToJson(todoModel.getOpenFilename());
+	}
+}
+
+extern (C) void onNewMenuActivated() {
+	todoModel.clear();
+}
+
+extern (C) void onSaveMenuActivated() {
+	if (todoModel.getOpenFilename() is null) {
+		onSaveAsMenuActivated();
+	} else {
+		todoModel.saveToJson(todoModel.getOpenFilename());
+	}
+}
+
+extern (C) void onSaveAsMenuActivated() {
+	import gtk.FileChooserDialog;
+	auto dialog = new FileChooserDialog(
+		"Save As",
+		window,
+		FileChooserAction.SAVE
+	);
+	if (todoModel.getOpenFilename() !is null) {
+		dialog.setFilename(todoModel.getOpenFilename());
+	}
+	int result = dialog.run();
+	if (result == -5) {
+		todoModel.saveToJson(dialog.getFilename());
+	}
+	dialog.close();
+}
+
+extern (C) void onOpenMenuActivated() {
+	import gtk.FileChooserDialog;
+	auto dialog = new FileChooserDialog(
+		"Open",
+		window,
+		FileChooserAction.OPEN
+	);
+	int result = dialog.run();
+	if (result == -5) {
+		todoModel.openFromJson(dialog.getFilename());
+	}
+	dialog.close();
 }

@@ -6,6 +6,12 @@
 	"dependencies": {
 		"gtk-d": "~>3.10.0"
 	},
+	"stringImportPaths": [
+		"resources"
+	],
+	"preBuildCommands": [
+		"glib-compile-resources --sourcedir=resources --target=resources/resources.gresource resources/gresource.xml"
+	],
 	"description": "A simple to-do list, implemented as a desktop application in D.",
 	"license": "MIT",
 	"name": "todo-d"

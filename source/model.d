@@ -26,9 +26,14 @@ interface ModelUpdateListener {
 class ToDoModel {
     private ToDoItem[] items;
     private ModelUpdateListener[] listeners;
+    private string openFilename = null;
 
     void addListener(ModelUpdateListener listener) {
         listeners ~= listener;
+    }
+
+    string getOpenFilename() {
+        return openFilename;
     }
 
     void addItem(string text) {
@@ -76,6 +81,50 @@ class ToDoModel {
         lower.priority -= 1;
         items[idx + 1] = item;
         items[idx] = lower;
+        notifyListeners();
+    }
+
+    void openFromJson(string filename) {
+        import std.json;
+        import std.file;
+        import std.algorithm;
+        JSONValue j = parseJSON(readText(filename));
+        JSONValue[] itemsArray = j["items"].array();
+        items = [];
+        foreach (JSONValue itemObj; itemsArray) {
+            ToDoItem item = new ToDoItem(
+                itemObj["text"].str,
+                itemObj["priority"].get!int,
+                itemObj["checked"].boolean
+            );
+            items ~= item;
+        }
+        openFilename = filename;
+        sort!((a, b) => a.priority < b.priority)(items);
+        normalizePrio();
+        notifyListeners();
+    }
+
+    void saveToJson(string filename) {
+        import std.json;
+        import std.file;
+        JSONValue j = JSONValue();
+        JSONValue[] itemObjs;
+        foreach (item; items) {
+            JSONValue itemObj = JSONValue();
+            itemObj["text"] = JSONValue(item.text);
+            itemObj["priority"] = JSONValue(item.priority);
+            itemObj["checked"] = JSONValue(item.checked);
+            itemObjs ~= itemObj;
+        }
+        j["items"] = JSONValue(itemObjs);
+        write(filename, toJSON(j, true));
+        openFilename = filename;
+    }
+
+    void clear() {
+        items = [];
+        openFilename = null;
         notifyListeners();
     }
 
