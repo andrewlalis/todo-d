@@ -133,7 +133,7 @@
                   <object class="GtkListBox" id="taskList">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="selection_mode">none</property>
+                    <property name="activate_on_single_click">False</property>
                   </object>
                 </child>
               </object>
@@ -153,6 +153,7 @@
               <object class="GtkEntry" id="addTaskEntry">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <signal name="activate" handler="onAddTask" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">True</property>
@@ -169,7 +170,6 @@
                 <property name="use_stock">True</property>
                 <property name="always_show_image">True</property>
                 <signal name="clicked" handler="onAddTask" swapped="no"/>
-                <accelerator key="Return" signal="clicked"/>
               </object>
               <packing>
                 <property name="expand">False</property>

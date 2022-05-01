@@ -36,6 +36,15 @@ class ToDoModel {
         return openFilename;
     }
 
+    ToDoItem getItemAt(int prio) {
+        if (prio < 1 || prio > items.length) return null;
+        return items[prio - 1];
+    }
+
+    ulong itemCount() {
+        return items.length;
+    }
+
     void addItem(string text) {
         addItem(new ToDoItem(text, 1_000_000, false));
     }
@@ -135,7 +144,7 @@ class ToDoModel {
         }
     }
 
-    private void notifyListeners() {
+    public void notifyListeners() {
         foreach (l; listeners) l.itemsUpdated(this.items);
     }
 }

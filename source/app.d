@@ -1,5 +1,7 @@
 import model;
+
 import std.stdio;
+import std.functional : toDelegate;
 
 import gtk.MainWindow;
 import gtk.Main;
@@ -14,6 +16,10 @@ import gtk.Label;
 import gtk.CheckButton;
 import gtk.ToggleButton;
 import gtk.Button;
+import gtk.Widget;
+
+import gdk.Keymap;
+import gdk.Keysyms : GdkKeysyms;
 import gio.Resource;
 import glib.Bytes;
 
@@ -30,26 +36,6 @@ class ToDoItemWidget : Box {
         label.setHalign(GtkAlign.START);
         label.setValign(GtkAlign.CENTER);
         this.packStart(button, false, false, 0);
-        
-        Button removeButton = new Button(StockID.REMOVE);
-        removeButton.addOnClicked(delegate(Button b) {
-			todoModel.removeItem(item.priority);
-        });
-		this.packEnd(removeButton, false, false, 0);
-
-		if (todoModel.canIncrement(item)) {
-			Button upButton = new Button(StockID.GO_UP, delegate(Button b) {
-				todoModel.incrementPriority(item);
-			});
-			this.packEnd(upButton, false, false, 0);
-		}
-		if (todoModel.canDecrement(item)) {
-			Button downButton = new Button(StockID.GO_DOWN, delegate(Button b) {
-				todoModel.decrementPriority(item);
-			});
-			this.packEnd(downButton, false, false, 0);
-		}
-        
         this.packEnd(label, true, true, 0);
     }
 }
@@ -80,10 +66,11 @@ void main(string[] args) {
 	builder.connectSignals(null);
 
 	taskList = cast(ListBox) builder.getObject("taskList");
+	Widget listWidget = cast(Widget) taskList;
+	listWidget.addOnKeyPress(toDelegate(&taskListKeyPressed));
 	taskEntry = cast(Entry) builder.getObject("addTaskEntry");
 
 	todoModel = new ToDoModel();
-	import std.functional : toDelegate;
 	todoModel.addListener(ModelUpdateListener.of(toDelegate(&itemsUpdated)));
 
 	window = cast(ApplicationWindow) builder.getObject("window");
@@ -96,10 +83,58 @@ void itemsUpdated(ToDoItem[] items) {
 	foreach (item; items) {
 		auto widget = new ToDoItemWidget(item, todoModel);
 		auto row = new ListBoxRow();
+		row.setSelectable(true);
+		row.setActivatable(false);
 		row.add(widget);
 		taskList.add(row);
 	}
 	taskList.showAll();
+}
+
+bool taskListKeyPressed(GdkEventKey* event, Widget w) {
+	int idx = taskList.getSelectedRow().getIndex();
+	int selectedPrio = idx + 1;
+	ToDoItem selectedItem = todoModel.getItemAt(selectedPrio);
+	if (selectedItem is null) return true;
+	bool ctrlDown = (event.state & ModifierType.CONTROL_MASK) > 0;
+	if (ctrlDown && event.keyval == GdkKeysyms.GDK_Up && todoModel.canIncrement(selectedItem)) {
+		todoModel.incrementPriority(selectedItem);
+		auto row = taskList.getRowAtIndex(idx - 1);
+		taskList.selectRow(row);
+		Widget rowWidget = cast(Widget) row;
+		rowWidget.grabFocus();
+	}
+	if (ctrlDown && event.keyval == GdkKeysyms.GDK_Down && todoModel.canDecrement(selectedItem)) {
+		todoModel.decrementPriority(selectedItem);
+		auto row = taskList.getRowAtIndex(idx + 1);
+		taskList.selectRow(row);
+		Widget rowWidget = cast(Widget) row;
+		rowWidget.grabFocus();
+	}
+	if (!ctrlDown && event.keyval == GdkKeysyms.GDK_Up && idx > 0) {
+		auto row = taskList.getRowAtIndex(idx - 1);
+		taskList.selectRow(row);
+		Widget rowWidget = cast(Widget) row;
+		rowWidget.grabFocus();
+	}
+	if (!ctrlDown && event.keyval == GdkKeysyms.GDK_Down && idx + 1 < todoModel.itemCount) {
+		auto row = taskList.getRowAtIndex(idx + 1);
+		taskList.selectRow(row);
+		Widget rowWidget = cast(Widget) row;
+		rowWidget.grabFocus();
+	}
+	if (event.keyval == GdkKeysyms.GDK_Delete) {
+		todoModel.removeItem(selectedPrio);
+	}
+	if (event.keyval == GdkKeysyms.GDK_Return) {
+		selectedItem.checked = !selectedItem.checked;
+		todoModel.notifyListeners();
+		auto row = taskList.getRowAtIndex(idx);
+		taskList.selectRow(row);
+		Widget rowWidget = cast(Widget) row;
+		rowWidget.grabFocus();
+	}
+	return true;
 }
 
 extern (C) void addTask() {
