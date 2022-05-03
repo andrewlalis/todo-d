@@ -1,6 +1,7 @@
 {
 	"fileVersion": 1,
 	"versions": {
+		"dsh": "1.6.1",
 		"gtk-d": "3.10.0"
 	}
 }

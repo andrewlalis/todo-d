@@ -13,14 +13,7 @@ class ToDoItem {
 
 interface ModelUpdateListener {
     void itemsUpdated(ToDoItem[] items);
-
-    static ModelUpdateListener of(void delegate(ToDoItem[]) dg) {
-        return new class ModelUpdateListener {
-            void itemsUpdated(ToDoItem[] items) {
-                dg(items);
-            }
-        };
-    }
+    void fileUpdated(string filename);
 }
 
 class ToDoModel {
@@ -108,7 +101,10 @@ class ToDoModel {
             );
             items ~= item;
         }
-        openFilename = filename;
+        if (openFilename != filename) {
+            openFilename = filename;
+            foreach (l; listeners) l.fileUpdated(filename);
+        }
         sort!((a, b) => a.priority < b.priority)(items);
         normalizePrio();
         notifyListeners();
@@ -128,12 +124,16 @@ class ToDoModel {
         }
         j["items"] = JSONValue(itemObjs);
         write(filename, toJSON(j, true));
-        openFilename = filename;
+        if (openFilename != filename) {
+            openFilename = filename;
+            foreach (l; listeners) l.fileUpdated(filename);
+        }
     }
 
     void clear() {
         items = [];
         openFilename = null;
+        foreach (l; listeners) l.fileUpdated(openFilename);
         notifyListeners();
     }
 

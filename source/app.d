@@ -2,6 +2,9 @@ import model;
 
 import std.stdio;
 import std.functional : toDelegate;
+import dsh : getHomeDir;
+import std.path;
+import std.file;
 
 import gtk.MainWindow;
 import gtk.Main;
@@ -63,6 +66,7 @@ void main(string[] args) {
 	builder.addCallbackSymbol("onSaveAsMenuActivated", &onSaveAsMenuActivated);
 	builder.addCallbackSymbol("onOpenMenuActivated", &onOpenMenuActivated);
 	builder.addCallbackSymbol("onQuitMenuActivated", &onWindowDestroy);
+	builder.addCallbackSymbol("onAboutMenuActivated", &onAboutMenuActivated);
 	builder.connectSignals(null);
 
 	taskList = cast(ListBox) builder.getObject("taskList");
@@ -71,24 +75,53 @@ void main(string[] args) {
 	taskEntry = cast(Entry) builder.getObject("addTaskEntry");
 
 	todoModel = new ToDoModel();
-	todoModel.addListener(ModelUpdateListener.of(toDelegate(&itemsUpdated)));
+	string lastOpenPath = buildPath(getHomeDir(), ".config/todo-d/last-open.txt");
+	if (exists(lastOpenPath)) {
+		import std.string : strip;
+		string lastOpenFile = readText(lastOpenPath).strip;
+		todoModel.openFromJson(lastOpenFile);
+	}
 
 	window = cast(ApplicationWindow) builder.getObject("window");
+	auto listener = new UIModelUpdateListener(window);
+	todoModel.addListener(listener);
+
+	// Trigger UI updates once before rendering the window.
+	todoModel.notifyListeners();
+	listener.fileUpdated(todoModel.getOpenFilename());
+
 	window.showAll();
 	Main.run();
 }
 
-void itemsUpdated(ToDoItem[] items) {
-	taskList.removeAll();
-	foreach (item; items) {
-		auto widget = new ToDoItemWidget(item, todoModel);
-		auto row = new ListBoxRow();
-		row.setSelectable(true);
-		row.setActivatable(false);
-		row.add(widget);
-		taskList.add(row);
+class UIModelUpdateListener : ModelUpdateListener {
+	private ApplicationWindow window;
+
+	this(ApplicationWindow window) {
+		this.window = window;
 	}
-	taskList.showAll();
+
+	void itemsUpdated(ToDoItem[] items) {
+		taskList.removeAll();
+		foreach (item; items) {
+			auto widget = new ToDoItemWidget(item, todoModel);
+			auto row = new ListBoxRow();
+			row.setSelectable(true);
+			row.setActivatable(false);
+			row.add(widget);
+			taskList.add(row);
+		}
+		taskList.showAll();
+	}
+
+    void fileUpdated(string filename) {
+		if (filename is null) {
+			window.setTitle("todo-d");
+		} else {
+			window.setTitle("todo-d - " ~ filename);
+		}
+		window.showAll();
+	}
 }
 
 bool taskListKeyPressed(GdkEventKey* event, Widget w) {
@@ -146,6 +179,12 @@ extern (C) void onWindowDestroy() {
 	Main.quit();
 	if (todoModel.getOpenFilename() !is null) {
 		todoModel.saveToJson(todoModel.getOpenFilename());
+		string configPath = buildPath(getHomeDir(), ".config/todo-d/");
+		if (!exists(configPath)) {
+			mkdirRecurse(configPath);
+		}
+		string lastOpenFile = buildPath(configPath, "last-open.txt");
+		std.file.write(lastOpenFile, todoModel.getOpenFilename());
 	}
 }
 
@@ -190,4 +229,16 @@ extern (C) void onOpenMenuActivated() {
 		todoModel.openFromJson(dialog.getFilename());
 	}
 	dialog.close();
+}
+
+extern (C) void onAboutMenuActivated() {
+	import gtk.AboutDialog;
+	AboutDialog dialog = new AboutDialog();
+	dialog.setProgramName("Todo-D");
+	dialog.setLicenseType(GtkLicense.MIT_X11);
+	dialog.setAuthors(["Andrew Lalis"]);
+	dialog.setComments("A simple To-Do app written in D using GTK.");
+	dialog.setWebsite("https://github.com/andrewlalis/todo-d");
+	dialog.run();
+	dialog.destroy();
 }

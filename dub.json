@@ -4,7 +4,8 @@
 	],
 	"copyright": "Copyright © 2022, Andrew Lalis",
 	"dependencies": {
-		"gtk-d": "~>3.10.0"
+		"gtk-d": "~>3.10.0",
+		"dsh": "~>1.6.1"
 	},
 	"stringImportPaths": [
 		"resources"
